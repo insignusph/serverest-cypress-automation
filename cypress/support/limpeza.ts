@@ -39,13 +39,21 @@ export function concluirLimpeza(estado: string | undefined, falhas: readonly str
 }
 
 export function excluirUsuario(api: string, id: string, falhas: string[]): void {
-  cy.request({
+  cy.request<{ message?: string }>({
     method: 'DELETE',
     url: `${api}/usuarios/${encodeURIComponent(id)}`,
     failOnStatusCode: false,
     log: false,
   }).then((resposta) => {
-    anotar(falhas, 'DELETE', `/usuarios/${id}`, resposta.status, 200);
+    const resultado = `DELETE /usuarios/${id} → ${String(resposta.status)}`;
+    Cypress.log({ name: 'limpeza', message: resultado });
+    const jaAusente =
+      resposta.status === 200 ||
+      resposta.status === 404 ||
+      (resposta.status === 400 && resposta.body.message === 'Usuário não encontrado');
+    if (!jaAusente) {
+      falhas.push(resultado);
+    }
   });
 }
 

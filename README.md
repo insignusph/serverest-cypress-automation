@@ -6,7 +6,7 @@ O desafio pede três cenários de API e três de interface, no mesmo repositóri
 
 ## Tecnologias
 
-- Node.js 20 ou superior
+- Node.js 22.13 ou superior na linha 22, Node.js 24, ou Node.js 26 ou superior
 - Cypress 16
 - TypeScript em modo strict
 - ESLint, com `typescript-eslint` e `eslint-plugin-cypress`
@@ -17,8 +17,10 @@ Não há aplicação própria, banco, Docker nem pipeline de CI neste repositór
 
 ## Pré-requisitos
 
-- Node.js 20 ou superior
+- Node.js `^22.13.0`, `^24.0.0` ou `>=26.0.0`
 - npm
+
+Node.js 20, 23 e 25 ficam de fora. O Cypress 16 instalado declara `^22.0.0 || ^24.0.0 || >=26.0.0`. Na linha 22, o ESLint 10 e o Faker exigem a partir de 22.13. O intervalo do `package.json` é a interseção desses `engines`, não a versão da máquina em que a suíte foi escrita.
 
 O Cypress baixa o binário do Electron na instalação. A suíte usa esse navegador no modo headless. Não é preciso instalar Chrome.
 
@@ -31,6 +33,8 @@ npm ci
 ```
 
 `npm ci` instala exatamente o que está em `package-lock.json`.
+
+No npm 11, o `package.json` aprova o script de instalação apenas do `cypress@16.3.0` em `allowScripts`. Não é necessário alterar a configuração global do npm. O download do binário exige acesso a `download.cypress.io`; `ignore-scripts=true` ou `CYPRESS_INSTALL_BINARY=0` impedem essa instalação automática. Se a versão do Cypress for atualizada, revise o script e atualize a aprovação com `npm approve-scripts cypress`.
 
 ## Execução
 
@@ -121,9 +125,13 @@ Não há page objects, clientes de API nem factories genéricas. A requisição 
 
 `cypress/support/dados.ts` gera os objetos. Não chama o servidor. O e-mail, o nome do produto e a descrição levam um UUID. O campo `administrador` é a string `"true"` ou `"false"`. O preço é um inteiro de 1 a 500. A quantidade é um inteiro de 0 a 20.
 
-Cada cenário guarda o id antes das assertivas. O `afterEach` exclui só esses ids. Produto é removido antes do usuário de quem o token depende. O DELETE de produto exige administrador; o de usuário, não. Se o API-03 observar um produto que não deveria existir, a limpeza cria um administrador exclusivo para apagá-lo e depois remove esse administrador.
+Cada cenário guarda o id antes das assertivas. O `afterEach` exclui só esses ids. Produto é removido antes do usuário de quem o token depende. O DELETE de produto exige administrador; o de usuário, não.
 
-Uma exclusão usa `failOnStatusCode: false` e não interrompe as demais. O status é anotado sem senha nem token. Se o cenário passou e alguma exclusão não devolveu o status esperado, a suíte falha numa assertiva única, depois de todas as tentativas. Se o cenário já falhou, a limpeza só registra o ocorrido e preserva o erro original. Um recurso já removido pelo próprio cenário não é excluído de novo.
+No API-03, o teardown consulta `GET /produtos?nome=` com o nome único daquele cenário, mesmo se uma assertiva tiver interrompido o teste antes da consulta final. Só entra na limpeza o item cujo nome é exatamente o gerado. Se nenhum id for encontrado, nenhum administrador temporário é criado. Se houver id, a limpeza cria um administrador exclusivo para apagar esses produtos e depois remove esse administrador.
+
+Uma resposta HTTP inesperada é anotada, com método, recurso e status, e a fila segue para a próxima exclusão. Senha e token não entram no registro. Falha de conexão, timeout ou outra exceção do `cy.request` ainda interrompe a fila: `failOnStatusCode: false` não captura esses casos. Depois que as tentativas HTTP terminam, se o cenário tinha passado e existe falha anotada, uma assertiva única reporta a limpeza. Se o cenário já tinha falhado, a limpeza não emite essa assertiva, para o erro original permanecer quando a fila chega ao fim. Uma exceção no meio do teardown ainda pode impedir o restante e substituir a falha visível.
+
+O DELETE de usuário aceita 200, o contrato normal do ServeRest, inclusive quando o registro já não existe. Também aceita 404 e 400 com a mensagem `Usuário não encontrado`, porque o recurso já está ausente. Outro status continua sendo falha de limpeza. No API-01, o teardown só deixa de excluir de novo depois que o GET confirma a ausência com 400 e essa mensagem. Um DELETE 200, sozinho, não é tratado como ausência comprovada.
 
 ## Decisões técnicas
 

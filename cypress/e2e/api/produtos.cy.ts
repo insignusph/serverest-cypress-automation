@@ -9,16 +9,46 @@ interface ListaProdutos {
 
 describe('API-03 — Proteção do cadastro de produtos', () => {
   const produtosIndevidos: string[] = [];
+  let nomeDoProduto: string | undefined;
   const apiUrl = urlDaApi();
 
   afterEach(function () {
     const falhas: string[] = [];
-    excluirProdutosIndevidos(apiUrl, produtosIndevidos, falhas);
-    concluirLimpeza(this.currentTest?.state, falhas);
+    const nome = nomeDoProduto;
+    const estado = this.currentTest?.state;
+    if (nome === undefined) {
+      concluirLimpeza(estado, falhas);
+      return;
+    }
+
+    cy.request<ListaProdutos>({
+      method: 'GET',
+      url: `${apiUrl}/produtos`,
+      qs: { nome },
+      failOnStatusCode: false,
+      log: false,
+    }).then((lista) => {
+      const encontrados = lista.body.produtos;
+      if (lista.status === 200 && Array.isArray(encontrados)) {
+        for (const item of encontrados) {
+          if (item.nome === nome) {
+            lembrar(produtosIndevidos, item._id);
+          }
+        }
+      } else {
+        const resultado = `GET /produtos?nome → ${String(lista.status)}`;
+        Cypress.log({ name: 'limpeza', message: resultado });
+        falhas.push(resultado);
+      }
+
+      excluirProdutosIndevidos(apiUrl, produtosIndevidos, falhas);
+    });
+    concluirLimpeza(estado, falhas);
   });
 
   it('rejeita cadastro sem token e não persiste o produto', () => {
     const produto = dadosProduto();
+    nomeDoProduto = produto.nome;
 
     cy.request<ListaProdutos>({
       method: 'GET',

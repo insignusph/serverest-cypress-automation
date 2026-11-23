@@ -59,6 +59,10 @@ describe('FE-01 — Cadastro de usuário', () => {
           throw new Error('A API não devolveu o identificador do usuário criado.');
         }
 
+        cy.get('.alert-primary')
+          .should('be.visible')
+          .and('contain.text', 'Cadastro realizado com sucesso');
+
         return cy.request<{
           nome?: string;
           email?: string;

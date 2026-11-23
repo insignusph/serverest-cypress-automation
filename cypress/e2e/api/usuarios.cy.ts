@@ -75,10 +75,6 @@ describe('API-01 — Ciclo de vida de usuário', () => {
       .then((exclusao) => {
         const id = idDoCenario();
 
-        if (exclusao.status === 200) {
-          usuarioRemovido = true;
-        }
-
         expect(exclusao.status, 'DELETE /usuarios/{_id}').to.eq(200);
         expect(exclusao.body.message, 'mensagem de exclusão').to.eq(
           'Registro excluído com sucesso',
@@ -92,6 +88,10 @@ describe('API-01 — Ciclo de vida de usuário', () => {
         });
       })
       .then((ausencia) => {
+        if (ausencia.status === 400 && ausencia.body.message === 'Usuário não encontrado') {
+          usuarioRemovido = true;
+        }
+
         expect(ausencia.status, 'GET do usuário excluído').to.eq(400);
         expect(ausencia.body.message, 'mensagem de ausência').to.eq('Usuário não encontrado');
       });

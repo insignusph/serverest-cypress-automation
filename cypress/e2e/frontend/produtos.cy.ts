@@ -160,6 +160,15 @@ describe('FE-03 — Cadastro de produto', () => {
         }
 
         cy.location('pathname').should('eq', '/admin/listarprodutos');
+        cy.contains('h1', 'Lista dos Produtos').should('be.visible');
+        cy.contains('table.table td', produto.nome)
+          .should('be.visible')
+          .closest('tr')
+          .within(() => {
+            cy.contains('td', String(produto.preco)).should('be.visible');
+            cy.contains('td', produto.descricao).should('be.visible');
+            cy.contains('td', String(produto.quantidade)).should('be.visible');
+          });
 
         return cy.request<{
           nome?: string;
